@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System;
+using Jint;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class Test : MonoBehaviour
@@ -9,6 +11,19 @@ public class Test : MonoBehaviour
     {
         logText.text = "Init...";
         Log("Test.Start");
+
+        var engine = new Engine()
+                .SetValue("log", new Action<object>(x => Log(x.ToString())))
+            ;
+
+        engine.Execute(@"
+            function hello() { 
+                log('Hello ECMA Script!');
+            };
+
+            hello();
+        ");
+
         Log("Test.Finish");
     }
 
