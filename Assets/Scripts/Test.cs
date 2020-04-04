@@ -1,14 +1,19 @@
 ﻿using System;
+using System.Collections;
+using System.Diagnostics;
+using System.IO;
 using Esprima.Ast;
 using Jint;
 using UnityEngine;
 using UnityEngine.UI;
+using Debug = UnityEngine.Debug;
 
 public class Test : MonoBehaviour
 {
     [SerializeField] private Text logText = default;
+    private bool logStop = false;
 
-    public void Start()
+    public IEnumerator Start()
     {
         logText.text = "Init...";
         Log("Test.Start");
@@ -48,6 +53,33 @@ public class Test : MonoBehaviour
 
         Log(nanka.MonsterA.HP.ToString());
 
+        yield return new WaitForSeconds(1);
+
+        // var readText = File.ReadAllText("/Users/kyubuns/code/Aprot/Haxe/bin/main.js");
+        var readText = ((TextAsset) Resources.Load("main")).text;
+        Debug.Log(readText);
+        var jsEngine = new Engine()
+            .SetValue("log", new Action<object>(x => Log(x.ToString())))
+            .Execute(readText);
+
+        logStop = true;
+        var stopwatch = Stopwatch.StartNew();
+        for (var i = 0; i < 10000; ++i)
+        {
+            var mainClass = jsEngine.GetValue("Main");
+            var getListFunc = mainClass.Get("getList");
+            var systems = getListFunc.Invoke();
+            Log($"systems = {systems}");
+
+            foreach (var system in systems.AsArray())
+            {
+                Log($"system = {system} / {system.Get("run").Invoke()}");
+            }
+        }
+        stopwatch.Stop();
+        logStop = false;
+        Log($"{stopwatch.ElapsedMilliseconds}ms");
+
         Log("Test.Finish");
     }
 
@@ -65,6 +97,8 @@ public class Test : MonoBehaviour
 
     private void Log(string text)
     {
+        if (logStop) return;
+        Debug.Log(text);
         logText.text = $"{text}\n{logText.text}";
     }
 }
