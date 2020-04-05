@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using context;
+using core;
 using Esprima.Ast;
 using haxe.root;
 using Jint;
@@ -24,20 +25,38 @@ public class Test : MonoBehaviour
     public void Start()
     {
         logText.text = "Init...";
+        Hoge();
+        // Fuga();
+    }
+
+    private void Fuga()
+    {
+        var hogeA = new HogeA();
+        hogeA.Monsters = new List<Monster>();
+        hogeA.Monsters.Add(new Monster { HP = 10, Attack = 5 });
+        hogeA.Monsters.Add(new Monster { HP = 10, Attack = 5 });
+        var jsEngine = new Engine()
+            .SetValue("log", new Action<object>(x => Log(x.ToString())))
+            .SetValue("hoge", hogeA)
+            .Execute(@"
+log(hoge);
+hoge.Monsters.push();
+");
+        foreach (var m in hogeA.Monsters)
+        {
+            Debug.Log($"{m.HP}, {m.Attack}");
+        }
+    }
+
+    private void Hoge()
+    {
         Log("Test.Start");
 
         var readText = File.ReadAllText("/Users/kyubuns/code/Aprot/Haxe/bin/main.js");
         // var readText = ((TextAsset) Resources.Load("main")).text;
 
-        var world = new world.World();
-        world.input = new context.Input();
-        world.renderer = new context.Renderer();
-        world.renderer.queue = new Array<object>();
-        world.time = new context.Time();
-
         Debug.Log(readText);
         var jsEngine = new Engine()
-            .SetValue("aprot", new JsAprot(world))
             .SetValue("log", new Action<object>(x => Log(x.ToString())))
             .Execute(readText);
 
@@ -46,7 +65,6 @@ public class Test : MonoBehaviour
         var entities = initFanc.Invoke();
 
         PrintEntities(entities);
-        PrintWorld(world);
 
         var getListFunc = mainClass.Get("getList");
         var systems = getListFunc.Invoke();
@@ -58,7 +76,27 @@ public class Test : MonoBehaviour
             Log($"system = {system} / {runMethod.Invoke(entities)}");
         }
         PrintEntities(entities);
-        PrintWorld(world);
+
+        var serializeWorldFunc = mainClass.Get("serializeWorld");
+        var serializedWorld = serializeWorldFunc.Invoke().AsString();
+        Log(serializedWorld);
+        var world = World.deserialize(serializedWorld);
+
+        Log($"world.renderer.queue = {world.renderer.queue.length}");
+        for (var i = 0; i < world.renderer.queue.length; ++i)
+        {
+            var q = world.renderer.queue[i];
+            Log($"  - {q}");
+            Log($"  - {q.GetType()}");
+            Log($"  - {((core.Vector2)q).x}, {((core.Vector2)q).y}");
+        }
+        /*
+        Log($"world.renderer.queue = {world.renderer.queue.Length}");
+        foreach (var q in world.renderer.queue)
+        {
+            Log($"  - {q.x}, {q.y}");
+        }
+        */
 
         Log("Test.Finish");
     }
@@ -81,19 +119,6 @@ public class Test : MonoBehaviour
         }
     }
 
-    private void PrintWorld(world.World world)
-    {
-        Log($"world.renderer.queue = {world.renderer.queue.length}");
-        for (var i = 0; i < world.renderer.queue.length; ++i)
-        {
-            var element = world.renderer.queue[i];
-            Log($"{element.GetType()}");
-            core.Vector2
-            var vector2 = (core.Vector2) element;
-            Log($"  - {vector2.x}, {vector2.y}");
-        }
-    }
-
     public class Nanka
     {
         public Monster MonsterA { get; set; }
@@ -102,8 +127,23 @@ public class Test : MonoBehaviour
 
     public class Monster
     {
+        public Monster(int hp, int attack)
+        {
+            HP = hp;
+            Attack = attack;
+        }
+
+        public Monster()
+        {
+        }
+
         public int HP { get; set; }
         public int Attack { get; set; }
+    }
+
+    public class HogeA
+    {
+        public List<Monster> Monsters { get; set; }
     }
 
     private void Log(string text)
