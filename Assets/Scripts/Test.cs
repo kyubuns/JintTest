@@ -4,6 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using Esprima.Ast;
 using Jint;
+using Jint.Native.Function;
+using Jint.Runtime;
+using Jint.Runtime.Interop;
 using UnityEngine;
 using UnityEngine.UI;
 using Debug = UnityEngine.Debug;
@@ -13,7 +16,7 @@ public class Test : MonoBehaviour
     [SerializeField] private Text logText = default;
     private bool logStop = false;
 
-    public IEnumerator Start()
+    public void Start()
     {
         logText.text = "Init...";
         Log("Test.Start");
@@ -53,28 +56,36 @@ public class Test : MonoBehaviour
 
         Log(nanka.MonsterA.HP.ToString());
 
-        yield return new WaitForSeconds(1);
-
-        // var readText = File.ReadAllText("/Users/kyubuns/code/Aprot/Haxe/bin/main.js");
-        var readText = ((TextAsset) Resources.Load("main")).text;
+        var readText = File.ReadAllText("/Users/kyubuns/code/Aprot/Haxe/bin/main.js");
+        // var readText = ((TextAsset) Resources.Load("main")).text;
         Debug.Log(readText);
         var jsEngine = new Engine()
             .SetValue("log", new Action<object>(x => Log(x.ToString())))
             .Execute(readText);
 
-        logStop = true;
+        // logStop = true;
         var stopwatch = Stopwatch.StartNew();
-        for (var i = 0; i < 10000; ++i)
-        {
-            var mainClass = jsEngine.GetValue("Main");
-            var getListFunc = mainClass.Get("getList");
-            var systems = getListFunc.Invoke();
-            Log($"systems = {systems}");
+        var mainClass = jsEngine.GetValue("Main");
+        var getListFunc = mainClass.Get("getList");
+        var systems = getListFunc.Invoke();
+        Log($"systems = {systems}");
 
-            foreach (var system in systems.AsArray())
+        foreach (var system in systems.AsArray())
+        {
+            var runMethod = system.Get("run");
+            Log($"{runMethod}, {runMethod.GetType()}");
+            if (runMethod is ScriptFunctionInstance scriptFunctionInstance)
             {
-                Log($"system = {system} / {system.Get("run").Invoke()}");
+                Log($"{scriptFunctionInstance.FunctionDeclaration}, {scriptFunctionInstance.FunctionDeclaration.GetType()}");
+                foreach (var param in scriptFunctionInstance.FunctionDeclaration.Params)
+                {
+                    if (param is Identifier identifier)
+                    {
+                        Log($"{identifier.Name} - {identifier.Type}");
+                    }
+                }
             }
+            Log($"system = {system} / {runMethod.Invoke()}");
         }
         stopwatch.Stop();
         logStop = false;
