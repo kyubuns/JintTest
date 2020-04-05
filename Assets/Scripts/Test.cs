@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using context;
 using Esprima.Ast;
+using haxe.root;
 using Jint;
 using Jint.Native;
 using Jint.Native.Function;
@@ -11,6 +13,7 @@ using Jint.Runtime;
 using Jint.Runtime.Interop;
 using UnityEngine;
 using UnityEngine.UI;
+using world;
 using Debug = UnityEngine.Debug;
 
 public class Test : MonoBehaviour
@@ -25,6 +28,7 @@ public class Test : MonoBehaviour
 
         var readText = File.ReadAllText("/Users/kyubuns/code/Aprot/Haxe/bin/main.js");
         // var readText = ((TextAsset) Resources.Load("main")).text;
+
         Debug.Log(readText);
         var jsEngine = new Engine()
             .SetValue("log", new Action<object>(x => Log(x.ToString())))
