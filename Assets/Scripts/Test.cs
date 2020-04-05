@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using Esprima.Ast;
 using Jint;
+using Jint.Native;
 using Jint.Native.Function;
 using Jint.Runtime;
 using Jint.Runtime.Interop;
@@ -21,41 +23,6 @@ public class Test : MonoBehaviour
         logText.text = "Init...";
         Log("Test.Start");
 
-        var engine = new Engine()
-            .SetValue("log", new Action<object>(x => Log(x.ToString())));
-
-        engine.Execute(@"
-            function hello() { 
-                log('Hello ECMA Script!');
-            };
-
-            hello();
-        ");
-
-        var add = new Engine()
-            .Execute("function add(a, b) { return a + b; }")
-            .GetValue("add");
-
-        Log($"1 + 2 = {add.Invoke(1, 2)}");
-        Log($"5 + 7 = {add.Invoke(5, 7)}");
-
-        var nanka = new Nanka
-        {
-            MonsterA = new Monster { HP = 10, Attack = 3 },
-            MonsterB = new Monster { HP = 20, Attack = 5 },
-        };
-
-        new Engine()
-            .SetValue("log", new Action<object>(x => Log(x.ToString())))
-            .SetValue("nanka", nanka)
-            .Execute(@"
-                log(`nanka.MonsterA.HP = ${nanka.MonsterA.HP}`);
-                log(`nanka.MonsterA.HP -= 5`);
-                nanka.MonsterA.HP -= 5;
-            ");
-
-        Log(nanka.MonsterA.HP.ToString());
-
         var readText = File.ReadAllText("/Users/kyubuns/code/Aprot/Haxe/bin/main.js");
         // var readText = ((TextAsset) Resources.Load("main")).text;
         Debug.Log(readText);
@@ -63,9 +30,12 @@ public class Test : MonoBehaviour
             .SetValue("log", new Action<object>(x => Log(x.ToString())))
             .Execute(readText);
 
-        // logStop = true;
-        var stopwatch = Stopwatch.StartNew();
         var mainClass = jsEngine.GetValue("Main");
+        var initFanc = mainClass.Get("init");
+        var entities = initFanc.Invoke();
+
+        PrintEntities(entities);
+
         var getListFunc = mainClass.Get("getList");
         var systems = getListFunc.Invoke();
         Log($"systems = {systems}");
@@ -73,25 +43,29 @@ public class Test : MonoBehaviour
         foreach (var system in systems.AsArray())
         {
             var runMethod = system.Get("run");
-            Log($"{runMethod}, {runMethod.GetType()}");
-            if (runMethod is ScriptFunctionInstance scriptFunctionInstance)
-            {
-                Log($"{scriptFunctionInstance.FunctionDeclaration}, {scriptFunctionInstance.FunctionDeclaration.GetType()}");
-                foreach (var param in scriptFunctionInstance.FunctionDeclaration.Params)
-                {
-                    if (param is Identifier identifier)
-                    {
-                        Log($"{identifier.Name} - {identifier.Type}");
-                    }
-                }
-            }
-            Log($"system = {system} / {runMethod.Invoke()}");
+            Log($"system = {system} / {runMethod.Invoke(null, entities)}");
         }
-        stopwatch.Stop();
-        logStop = false;
-        Log($"{stopwatch.ElapsedMilliseconds}ms");
+        PrintEntities(entities);
 
         Log("Test.Finish");
+    }
+
+    private void PrintEntities(JsValue entities)
+    {
+        Log("PrintEntities");
+        foreach (var entity in entities.AsArray())
+        {
+            Log("entity");
+            foreach (var property in entity.AsObject().GetOwnProperties())
+            {
+                Log($"  - {property.Key}");
+                foreach (var ownProperty in property.Value.Value.AsObject().GetOwnProperties())
+                {
+                    Log($"    - {ownProperty.Key} = {ownProperty.Value.Value}");
+                }
+            }
+            Log($"  ----");
+        }
     }
 
     public class Nanka
